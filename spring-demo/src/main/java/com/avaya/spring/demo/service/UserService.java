@@ -2,7 +2,7 @@ package com.avaya.spring.demo.service;
 
 import com.avaya.spring.framework.Component;
 
-@Component("userService")
+@Component
 public class UserService {
     public UserService(){
 

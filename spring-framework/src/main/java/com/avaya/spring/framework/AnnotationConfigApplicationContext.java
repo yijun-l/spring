@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class AnnotationConfigApplicationContext {
 
-    private final Map<String, Class<?>> beanMap = new HashMap<>();
+    private final Map<String, BeanDefinition> beanDefinitionMap = new HashMap<>();
 
     public AnnotationConfigApplicationContext(Class<?> clazz){
         if (clazz.isAnnotationPresent(ComponentScan.class)) {
@@ -30,8 +30,19 @@ public class AnnotationConfigApplicationContext {
 
                     Class<?> beanClass = classLoader.loadClass(className);
                     if (beanClass.isAnnotationPresent(Component.class)) {
+                        BeanDefinition beanDefinition = new BeanDefinition(beanClass);
+                        if (beanClass.isAnnotationPresent(Scope.class)){
+                            beanDefinition.setScope(beanClass.getAnnotation(Scope.class).value());
+                        }
+                        if (beanClass.isAnnotationPresent(Lazy.class)){
+                            beanDefinition.setLazy(beanClass.getAnnotation(Lazy.class).value());
+                        }
                         String beanName = beanClass.getAnnotation(Component.class).value();
-                        beanMap.put(beanName, beanClass);
+                        if (beanName.isEmpty()){
+                            beanName = beanClass.getSimpleName();
+                            beanName = Character.toLowerCase(beanName.charAt(0)) + beanName.substring(1);
+                        }
+                        beanDefinitionMap.put(beanName, beanDefinition);
                     }
                 }
             } catch (Exception e) {
@@ -49,9 +60,9 @@ public class AnnotationConfigApplicationContext {
     }
 
     public Object getBean(String beanName) {
-        if (beanMap.containsKey(beanName)){
+        if (beanDefinitionMap.containsKey(beanName)){
             try {
-                return beanMap.get(beanName).getDeclaredConstructor().newInstance();
+                return beanDefinitionMap.get(beanName).getBeanClass().getDeclaredConstructor().newInstance();
             } catch (Exception e){
                 throw new RuntimeException(e);
             }
