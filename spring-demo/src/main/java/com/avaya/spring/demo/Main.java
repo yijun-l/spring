@@ -10,7 +10,7 @@ public class Main {
         AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
 
         // Retrieve the UserService bean from the Spring container
-        UserService userService = (UserService) applicationContext.getBean(UserService.class);
+        UserService userService = (UserService) applicationContext.getBean("userService");
 
         // Execute the test method to verify bean functionality
         userService.test();
