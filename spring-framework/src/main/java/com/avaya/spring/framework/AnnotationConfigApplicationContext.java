@@ -1,6 +1,7 @@
 package com.avaya.spring.framework;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -17,8 +18,10 @@ public class AnnotationConfigApplicationContext {
             String beanName = beanDefinitionEntry.getKey();
             BeanDefinition beanDefinition = beanDefinitionEntry.getValue();
             if (beanDefinition.getScope().equals(ScopeType.SINGLETON) && !beanDefinition.isLazy()){
-                Object singletonBean = createBean(beanDefinition);
-                singletonObjects.put(beanName, singletonBean);
+                if (!singletonObjects.containsKey(beanName)) {
+                    Object singletonBean = createBean(beanDefinition);
+                    singletonObjects.put(beanName, singletonBean);
+                }
             }
         }
     }
@@ -26,7 +29,17 @@ public class AnnotationConfigApplicationContext {
     public Object createBean(BeanDefinition beanDefinition){
         Class<?> beanClass = beanDefinition.getBeanClass();
         try {
-            return beanClass.getDeclaredConstructor().newInstance();
+            // Create bean instance using default constructor
+            Object instance = beanClass.getDeclaredConstructor().newInstance();
+
+            // Perform dependency injection on all required fields
+            for (Field field : beanClass.getDeclaredFields()) {
+                if (field.isAnnotationPresent(AutoWired.class) && field.getAnnotation(AutoWired.class).value()) {
+                    field.setAccessible(true);
+                    field.set(instance, getBean(field.getType()));
+                }
+            }
+            return instance;
         } catch (Exception e){
             throw new RuntimeException(e);
         }

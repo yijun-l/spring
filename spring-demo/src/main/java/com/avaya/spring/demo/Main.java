@@ -1,5 +1,6 @@
 package com.avaya.spring.demo;
 
+import com.avaya.spring.demo.service.EmailService;
 import com.avaya.spring.demo.service.UserService;
 import com.avaya.spring.framework.AnnotationConfigApplicationContext;
 
@@ -14,5 +15,8 @@ public class Main {
 
         // Execute the test method to verify bean functionality
         userService.test();
+
+        EmailService emailService = (EmailService) applicationContext.getBean("emailService");
+        emailService.test();
     }
 }
