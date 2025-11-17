@@ -2,6 +2,7 @@ package com.avaya.spring.framework;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,19 @@ public class AnnotationConfigApplicationContext {
                     field.set(instance, getBean(field.getType()));
                 }
             }
+
+            // Execute @PostConstruct annotated methods (JSR-250 standard)
+            for (Method method : beanClass.getDeclaredMethods()){
+                if (method.isAnnotationPresent(PostConstruct.class)) {
+                    method.invoke(instance);
+                }
+            }
+
+            // Invoke InitializingBean callback (Spring lifecycle interface)
+            if (instance instanceof InitializingBean initializingBean){
+                initializingBean.afterPropertiesSet();
+            }
+
             return instance;
         } catch (Exception e){
             throw new RuntimeException(e);
