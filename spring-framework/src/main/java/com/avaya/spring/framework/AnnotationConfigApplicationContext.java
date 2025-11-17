@@ -7,7 +7,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-public class AnnotationConfigApplicationContext {
+public class AnnotationConfigApplicationContext implements ApplicationContext{
 
     private final Map<String, BeanDefinition> beanDefinitionMap = new HashMap<>();
     private final Map<String, Object> singletonObjects = new HashMap<>();
@@ -20,14 +20,14 @@ public class AnnotationConfigApplicationContext {
             BeanDefinition beanDefinition = beanDefinitionEntry.getValue();
             if (beanDefinition.getScope().equals(ScopeType.SINGLETON) && !beanDefinition.isLazy()){
                 if (!singletonObjects.containsKey(beanName)) {
-                    Object singletonBean = createBean(beanDefinition);
+                    Object singletonBean = createBean(beanName, beanDefinition);
                     singletonObjects.put(beanName, singletonBean);
                 }
             }
         }
     }
 
-    public Object createBean(BeanDefinition beanDefinition){
+    public Object createBean(String beanName, BeanDefinition beanDefinition){
         Class<?> beanClass = beanDefinition.getBeanClass();
         try {
             // Create bean instance using default constructor
@@ -51,6 +51,14 @@ public class AnnotationConfigApplicationContext {
             // Invoke InitializingBean callback (Spring lifecycle interface)
             if (instance instanceof InitializingBean initializingBean){
                 initializingBean.afterPropertiesSet();
+            }
+
+            if (instance instanceof BeanNameAware beanNameAware){
+                beanNameAware.setBeanName(beanName);
+            }
+
+            if (instance instanceof ApplicationContextAware applicationContextAware){
+                applicationContextAware.setApplicationContext(this);
             }
 
             return instance;
@@ -131,14 +139,14 @@ public class AnnotationConfigApplicationContext {
             Object singletonBean = singletonObjects.get(beanName);
             if (singletonBean == null) {
                 // Lazy initialization: create instance on first access
-                singletonBean = createBean(beanDefinition);
+                singletonBean = createBean(beanName, beanDefinition);
                 singletonObjects.put(beanName, singletonBean);
             }
             return singletonBean;
 
         } else {
             // Handle prototype beans - create new instance every time
-            return createBean(beanDefinition);
+            return createBean(beanName, beanDefinition);
         }
     }
 }
