@@ -12,6 +12,9 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
     private final Map<String, BeanDefinition> beanDefinitionMap = new HashMap<>();
     private final Map<String, Object> singletonObjects = new HashMap<>();
 
+    // AOP processor for handling method interception and proxy creation
+    private final AopBeanPostProcessor aopBeanPostProcessor = new AopBeanPostProcessor();
+
     public AnnotationConfigApplicationContext(Class<?> configClass){
         scan(configClass);
 
@@ -41,6 +44,18 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
                 }
             }
 
+            // Invoke Aware interface callbacks, provide infrastructure information to beans that need it
+            if (instance instanceof BeanNameAware beanNameAware){
+                beanNameAware.setBeanName(beanName);
+            }
+
+            if (instance instanceof ApplicationContextAware applicationContextAware){
+                applicationContextAware.setApplicationContext(this);
+            }
+
+            // Apply BeanPostProcessor before initialization
+            instance = aopBeanPostProcessor.postProcessBeforeInitialization(instance, beanName);
+
             // Execute @PostConstruct annotated methods (JSR-250 standard)
             for (Method method : beanClass.getDeclaredMethods()){
                 if (method.isAnnotationPresent(PostConstruct.class)) {
@@ -53,13 +68,8 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
                 initializingBean.afterPropertiesSet();
             }
 
-            if (instance instanceof BeanNameAware beanNameAware){
-                beanNameAware.setBeanName(beanName);
-            }
-
-            if (instance instanceof ApplicationContextAware applicationContextAware){
-                applicationContextAware.setApplicationContext(this);
-            }
+            // Apply BeanPostProcessor after initialization
+            instance = aopBeanPostProcessor.postProcessAfterInitialization(instance, beanName);
 
             return instance;
         } catch (Exception e){
