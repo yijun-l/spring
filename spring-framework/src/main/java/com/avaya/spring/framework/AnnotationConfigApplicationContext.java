@@ -4,18 +4,24 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class AnnotationConfigApplicationContext implements ApplicationContext{
 
     private final Map<String, BeanDefinition> beanDefinitionMap = new HashMap<>();
     private final Map<String, Object> singletonObjects = new HashMap<>();
+    private final List<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
 
     // AOP processor for handling method interception and proxy creation
     private final AopBeanPostProcessor aopBeanPostProcessor = new AopBeanPostProcessor();
 
     public AnnotationConfigApplicationContext(Class<?> configClass){
+        // Register system BeanPostProcessor
+        beanPostProcessorList.add(aopBeanPostProcessor);
+
         scan(configClass);
 
         for (Map.Entry<String, BeanDefinition> beanDefinitionEntry : beanDefinitionMap.entrySet()){
@@ -54,7 +60,9 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
             }
 
             // Apply BeanPostProcessor before initialization
-            instance = aopBeanPostProcessor.postProcessBeforeInitialization(instance, beanName);
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList){
+                instance = beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
+            }
 
             // Execute @PostConstruct annotated methods (JSR-250 standard)
             for (Method method : beanClass.getDeclaredMethods()){
@@ -69,7 +77,9 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
             }
 
             // Apply BeanPostProcessor after initialization
-            instance = aopBeanPostProcessor.postProcessAfterInitialization(instance, beanName);
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList){
+                instance = beanPostProcessor.postProcessAfterInitialization(instance, beanName);
+            }
 
             return instance;
         } catch (Exception e){
@@ -98,6 +108,13 @@ public class AnnotationConfigApplicationContext implements ApplicationContext{
 
                     Class<?> beanClass = classLoader.loadClass(className);
                     if (beanClass.isAnnotationPresent(Component.class)) {
+                        // // Handle custom BeanPostProcessor implementation
+                        if (BeanPostProcessor.class.isAssignableFrom(beanClass)){
+                            BeanPostProcessor beanPostProcessor = (BeanPostProcessor) beanClass.getDeclaredConstructor().newInstance();
+                            beanPostProcessorList.add(beanPostProcessor);
+                            // Skip normal bean registration for BeanPostProcessor
+                            continue;
+                        }
                         BeanDefinition beanDefinition = new BeanDefinition(beanClass);
                         if (beanClass.isAnnotationPresent(Scope.class)){
                             beanDefinition.setScope(beanClass.getAnnotation(Scope.class).value());
